@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: Auction Stat Filter
+## Notes: Filters Auction House results by the item stats you pick, in Blizzard's Auction House and in Auctionator.
+## Author: miyanko
+## Version: @project-version@
+## Category: Auctions
+## IconTexture: Interface\Icons\inv_misc_gem_variety_01
+## OptionalDeps: Auctionator
+## SavedVariables: AuctionStatFilterDB
+
+Libs\LibStub\LibStub.lua
+Libs\LibNativeUI-1.0\LibNativeUI-1.0.lua
+Modules\ItemStats.lua
+Modules\Filter.lua
+Modules\AuctionHouse.lua
+Modules\Auctionator.lua

@@ -1,0 +1,13 @@
+package-as: AuctionStatFilter
+
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
+
+ignore:
+  - Tests
+  - Tools
+  - release-please-config.json
+
+optional-dependencies:
+  - auctionator
