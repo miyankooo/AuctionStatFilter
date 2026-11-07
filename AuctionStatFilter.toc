@@ -4,7 +4,7 @@
 ## Author: miyanko
 ## Version: @project-version@
 ## Category: Auctions
-## IconTexture: Interface\Icons\inv_misc_gem_variety_01
+## IconTexture: Interface\Icons\inv_misc_punchcards_white
 ## OptionalDeps: Auctionator
 ## SavedVariables: AuctionStatFilterDB
 
