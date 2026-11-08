@@ -54,17 +54,21 @@ function frameMethods:SetDefaultCallback(fn) self.defaultCallback = fn end
 function frameMethods:SetIsDefaultCallback(fn) self.isDefaultCallback = fn end
 function frameMethods:ValidateResetState() self.resetShown = not self.isDefaultCallback() end
 
--- HelpTipTemplateMixin, as far as the addon calls it: Init takes the info, Acknowledge runs its callback and closes
+-- HelpTipTemplateMixin, as far as the addon calls it (Blizzard_SharedXML/HelpTip.lua). The frame keeps acknowledged
+-- from its OnLoad until Reset; Init leaves it alone, and Close runs the acknowledge callback whenever it is set
 local helpTips = {}
 local function helpTip(frame)
+    frame.acknowledged, frame.resets = false, 0
     function frame:Init(parent, info, relativeRegion) self.info, self.anchorParent, self.relativeRegion = info, parent, relativeRegion end
-    function frame:Acknowledge()
+    function frame:Reset() self.info, self.acknowledged, self.relativeRegion, self.resets = nil, false, nil, self.resets + 1 end
+    function frame:Close()
         local info = self.info
         self.info, self.shown = nil, false
-        if info.onAcknowledgeCallback then info.onAcknowledgeCallback(info.callbackArg) end
+        if info and self.acknowledged and info.onAcknowledgeCallback then info.onAcknowledgeCallback(info.callbackArg) end
     end
-    -- What the template's OnHide does when its button hides: close without acknowledging
-    function frame:CloseOnHide() self.info, self.shown = nil, false end
+    function frame:Acknowledge() self.acknowledged = true self:Close() end
+    -- What the template's OnHide does when its button hides
+    function frame:CloseOnHide() self:Close() end
     helpTips[#helpTips + 1] = frame
 end
 
@@ -347,6 +351,13 @@ SlashCmdList.AUCTIONSTATFILTER("intro")
 print = realPrint
 blizzardDropdown.scripts.OnShow(blizzardDropdown)
 check("/asf intro brings it back the next time Stats shows", tip.shown and tip.info and #helpTips == 1)
+local resets = tip.resets
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("a shown tip is left as it is", tip.shown and tip.resets == resets)
+tip:CloseOnHide()
+check("closing the Auction House after /asf intro leaves it unseen", not tip.shown and AuctionStatFilterDB.tipSeen == nil)
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("so it comes back next visit", tip.shown and tip.info)
 menuOpen.fn()
 check("opening Stats closes it for good again", not tip.shown and AuctionStatFilterDB.tipSeen == true)
 

@@ -211,12 +211,15 @@ local function AttachTip(target, text, targetPoint)
         onAcknowledgeCallback = function() ns.db.tipSeen = true end,
     }
     local function ShowTip()
-        if ns.db.tipSeen then return end
+        if ns.db.tipSeen or (tip and tip:IsShown()) then return end
         if not tip then
             tip = CreateFrame("Frame", nil, target, "HelpTipTemplate")
             tip.width = HelpTip.width
             tip:SetWidth(tip.width)
         end
+        -- Init leaves acknowledged set from a close before /asf intro (HelpTip.lua:419-431, 495, 687), so without the
+        -- Reset that tip would count as seen when it merely hides with the Stats button
+        tip:Reset()
         tip:Init(target, info, target)
         tip:Show()
     end
