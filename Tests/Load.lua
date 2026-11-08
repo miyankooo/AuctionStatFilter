@@ -345,12 +345,14 @@ check("opening Stats closes it for good", not tip.shown and AuctionStatFilterDB.
 blizzardDropdown.scripts.OnShow(blizzardDropdown)
 check("a seen tip never returns", not tip.shown and #helpTips == 1)
 strtrim = function(text) return (text:gsub("^%s+", ""):gsub("%s+$", "")) end
-local realPrint = print
-print = function() end
-SlashCmdList.AUCTIONSTATFILTER("intro")
-print = realPrint
-blizzardDropdown.scripts.OnShow(blizzardDropdown)
-check("/asf intro brings it back the next time Stats shows", tip.shown and tip.info and #helpTips == 1)
+local function intro()
+    local realPrint = print
+    print = function() end
+    SlashCmdList.AUCTIONSTATFILTER("intro")
+    print = realPrint
+end
+intro()
+check("/asf intro shows it again at once while Stats shows", tip.shown and tip.info and #helpTips == 1)
 local resets = tip.resets
 blizzardDropdown.scripts.OnShow(blizzardDropdown)
 check("a shown tip is left as it is", tip.shown and tip.resets == resets)
@@ -360,6 +362,13 @@ blizzardDropdown.scripts.OnShow(blizzardDropdown)
 check("so it comes back next visit", tip.shown and tip.info)
 menuOpen.fn()
 check("opening Stats closes it for good again", not tip.shown and AuctionStatFilterDB.tipSeen == true)
+AuctionHouseFrame.shown = false
+intro()
+check("/asf intro with the Auction House closed shows nothing yet", not tip.shown and AuctionStatFilterDB.tipSeen == nil)
+AuctionHouseFrame.shown = true
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("the tip shows the next time Stats shows", tip.shown and tip.info and #helpTips == 1)
+menuOpen.fn()
 
 -- ===== Auctionator's Shopping tab =====
 local shoppingRows = {}

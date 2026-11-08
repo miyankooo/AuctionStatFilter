@@ -20,9 +20,11 @@ EventUtil.ContinueOnPlayerLogin(function()
     if ns.firstRun then PrintWelcome() end
 end)
 
--- /asf intro: the welcome line now, and the Stats tip again the next time a Stats button shows
+-- /asf intro: the welcome line now, and the Stats tip again, at once while a Stats button shows, otherwise the next
+-- time one does
 local function ReplayIntro()
     ns.db.tipSeen = nil
+    ns.Filter.ShowTips()
     PrintWelcome()
 end
 

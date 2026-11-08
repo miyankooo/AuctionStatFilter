@@ -62,6 +62,8 @@ local LABELS = {
 ns.Filter.version = 0
 
 local dropdowns = {}
+-- Each Stats button's ShowTip, for /asf intro
+local showTips = {}
 
 -- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once the tip is done } in
 -- ns.db from ADDON_LOADED on. An absent table marks the account's first run, for the welcome line. A saved stat the
@@ -201,8 +203,11 @@ local callbackOwner = {}
 -- (Blizzard_AuctionHouseUI/Shared/Blizzard_AuctionHouseSellFrame.lua:507), with the close button. An own
 -- HelpTipTemplate frame of the target, never HelpTip:Show, which takes a frame from Blizzard's shared pool, and
 -- writing to that pool from addon code taints the help tips Blizzard shows later. It shows each time the target shows
--- until the player closes it or opens the menu, then never again on the account; it hides with the target unmarked.
-local function AttachTip(target, text, targetPoint)
+-- until the player closes it or uses the feature, then never again on the account; it hides with the target unmarked.
+-- Init leaves acknowledged set from an earlier close (HelpTip.lua:419-431, 495, 687), so Reset comes first, or a tip
+-- brought back by /asf intro would count as seen when it merely hides with its target. A target made while it is
+-- already visible, as Auctionator's Stats button can be, gets no OnShow, so the tip shows at once.
+local function AttachTip(target, text, targetPoint, relativeRegion)
     local tip
     local info = {
         text = text,
@@ -217,19 +222,18 @@ local function AttachTip(target, text, targetPoint)
             tip.width = HelpTip.width
             tip:SetWidth(tip.width)
         end
-        -- Init leaves acknowledged set from a close before /asf intro (HelpTip.lua:419-431, 495, 687), so without the
-        -- Reset that tip would count as seen when it merely hides with the Stats button
         tip:Reset()
-        tip:Init(target, info, target)
+        tip:Init(target, info, relativeRegion or target)
         tip:Show()
     end
     target:HookScript("OnShow", ShowTip)
-    -- Opening the menu is using the feature
-    target:RegisterCallback(DropdownButtonMixin.Event.OnMenuOpen, function()
-        if tip and tip.info then tip:Acknowledge() else ns.db.tipSeen = true end
-    end, callbackOwner)
-    -- Auctionator's button can be made while its tab already shows, so it gets no OnShow of its own
     if target:IsVisible() then ShowTip() end
+
+    -- The player used the feature: the tip goes for good, shown or not.
+    local function Retire()
+        if tip and tip.info then tip:Acknowledge() else ns.db.tipSeen = true end
+    end
+    return ShowTip, Retire
 end
 
 -- Blizzard's Filter button, labelled Stats, with one submenu per stat category, as the Collections filters group
@@ -270,6 +274,17 @@ function ns.Filter.CreateDropdown(parent, neighbour, tipPoint)
     dropdown.Badge = CreateCountBadge(dropdown)
     updateBadge(dropdown)
     dropdowns[#dropdowns + 1] = dropdown
-    AttachTip(dropdown, TIP_TEXT, tipPoint)
+    local showTip, retireTip = AttachTip(dropdown, TIP_TEXT, tipPoint)
+    showTips[dropdown] = showTip
+    -- Opening the menu is using the feature
+    dropdown:RegisterCallback(DropdownButtonMixin.Event.OnMenuOpen, retireTip, callbackOwner)
     return dropdown
+end
+
+-- For /asf intro once the seen flag is cleared: the tip shows now on every Stats button on screen, and on the others
+-- the next time they show
+function ns.Filter.ShowTips()
+    for _, dropdown in ipairs(dropdowns) do
+        if dropdown:IsVisible() then showTips[dropdown]() end
+    end
 end
