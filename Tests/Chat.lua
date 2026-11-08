@@ -1,5 +1,5 @@
--- Offline check of the chat lines: the welcome line on the account's first login only. Loads Chat.lua and Filter.lua
--- on a fresh client per login, against stubs of the WoW API.
+-- Offline check of the chat lines: the welcome line on the account's first login only, and /asf with help, intro and
+-- an unknown word. Loads Chat.lua and Filter.lua on a fresh client per login, against stubs of the WoW API.
 -- Run from the addon folder: lua Tests/Chat.lua
 
 local failures = 0
@@ -11,6 +11,8 @@ end
 -- ===== WoW API =====
 C_AddOns = { GetAddOnMetadata = function(_, field) return field == "Title" and "Auction Stat Filter" or nil end }
 NORMAL_FONT_COLOR = { WrapTextInColorCode = function(_, text) return "<gold>" .. text .. "</gold>" end }
+function strtrim(text) return (text:gsub("^%s+", ""):gsub("%s+$", "")) end
+SlashCmdList = {}
 
 local onLoaded, onLogin
 EventUtil = {
@@ -57,6 +59,28 @@ check("it reads as plain sentences", message and message:match("%.$") and not me
 loadLines, loginLines = login(AuctionStatFilterDB)
 check("a later load prints nothing", #loadLines == 0, #loadLines)
 check("a later login prints nothing", #loginLines == 0, #loginLines)
+
+-- ===== Slash commands =====
+local function slash(message) return capture(function() SlashCmdList.AUCTIONSTATFILTER(message) end) end
+local HELP = "<gold>[Auction Stat Filter]</gold>: Type /asf intro to see the welcome line and the tip again, "
+    .. "or /asf help for this list."
+
+check("/auctionstatfilter and /asf", SLASH_AUCTIONSTATFILTER1 == "/auctionstatfilter" and SLASH_AUCTIONSTATFILTER2 == "/asf")
+for _, word in ipairs({ "", "help", "?", "  Help " }) do
+    local lines = slash(word)
+    check("/asf " .. word .. " prints the help line", #lines == 1 and lines[1] == HELP, lines[1])
+end
+
+AuctionStatFilterDB.tipSeen = true
+local lines = slash("intro")
+check("/asf intro prints the welcome line now", #lines == 1 and lines[1] == WELCOME, lines[1])
+check("and shows the tip again", AuctionStatFilterDB.tipSeen == nil)
+
+AuctionStatFilterDB.tipSeen = true
+lines = slash("minimap")
+check("an unknown word prints the hint", #lines == 1
+    and lines[1] == "<gold>[Auction Stat Filter]</gold>: Unknown command. Type /asf help for the list.", lines[1])
+check("and changes nothing", AuctionStatFilterDB.tipSeen == true)
 
 print(failures == 0 and "All checks passed." or (failures .. " checks failed."))
 os.exit(failures == 0 and 0 or 1)

@@ -156,6 +156,7 @@ EventUtil = {
     ContinueOnPlayerLogin = function() end,
 }
 C_AddOns = { GetAddOnMetadata = function() return "Auction Stat Filter" end }
+SlashCmdList = {}
 
 -- ===== Auctionator =====
 Auctionator = {}
@@ -305,6 +306,15 @@ menuOpen.fn()
 check("opening Stats closes it for good", not tip.shown and AuctionStatFilterDB.tipSeen == true)
 blizzardDropdown.scripts.OnShow(blizzardDropdown)
 check("a seen tip never returns", not tip.shown and #helpTips == 1)
+strtrim = function(text) return (text:gsub("^%s+", ""):gsub("%s+$", "")) end
+local realPrint = print
+print = function() end
+SlashCmdList.AUCTIONSTATFILTER("intro")
+print = realPrint
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("/asf intro brings it back the next time Stats shows", tip.shown and tip.info and #helpTips == 1)
+menuOpen.fn()
+check("opening Stats closes it for good again", not tip.shown and AuctionStatFilterDB.tipSeen == true)
 
 -- ===== Auctionator's Shopping tab =====
 local shoppingRows = {}
