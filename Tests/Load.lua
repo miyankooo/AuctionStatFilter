@@ -31,6 +31,8 @@ function frameMethods:SetAllPoints() self.allPoints = true end
 function frameMethods:SetJustifyH(justify) self.justifyH = justify end
 function frameMethods:SetJustifyV(justify) self.justifyV = justify end
 function frameMethods:SetRoundLayoutToNearestPixel(on) self.rounded = on end
+-- GameFontHighlight's drop shadow, from SystemFont_Shadow_Med1 (Blizzard_Fonts_Shared/Shared/Fonts.xml:275)
+function frameMethods:GetShadowOffset() return 1, -1 end
 function frameMethods:CreateTexture() local t = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) self.texture = t return t end
 function frameMethods:CreateFontString() local f = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) return f end
 function frameMethods:Hide() self.shown = false end
@@ -230,7 +232,8 @@ check("Stats is Blizzard's filter button, on the grid", blizzardDropdown.templat
 local badge = blizzardDropdown.Badge
 check("the badge is Blizzard's counter on the top left corner", badge.texture.atlas == "tokens-counterBG" and badge.points.CENTER[1] == blizzardDropdown and badge.points.CENTER[2] == "TOPLEFT" and badge.width % 4 == 0)
 check("no stat, no badge", badge.shown == false)
-check("the number sits on the circle's centre", badge.Count.points.CENTER ~= nil and badge.texture.allPoints)
+local countPoint = badge.Count.points.CENTER
+check("the number sits on the circle's centre, half the shadow right", countPoint and countPoint[1] == badge and countPoint[2] == "CENTER" and countPoint[3] == 0.5 and countPoint[4] == 0 and badge.texture.allPoints)
 check("badge and circle round to whole pixels", badge.rounded and badge.texture.rounded)
 
 local menu = openMenu(blizzardDropdown)

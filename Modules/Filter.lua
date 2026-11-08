@@ -159,10 +159,14 @@ local function createBadge(dropdown)
     background:SetAtlas(BADGE_ATLAS)
     background:SetAllPoints()
     -- The number sits on the circle's centre, as Blizzard places it on this art in its shop
-    -- (Blizzard_CatalogShop/Blizzard_CatalogShop.xml:301)
+    -- (Blizzard_CatalogShop/Blizzard_CatalogShop.xml:301), moved right by half the font's drop shadow. The number's box
+    -- includes the shadow, so it is an odd width (9 px for a digit at 12 px) in the even circle, and a centred box
+    -- starts on a half pixel that rounds either way: a pixel left on Blizzard's Auction House, where the Stats button
+    -- sits a hair off a whole pixel. Half the shadow puts the box on a whole pixel and centres the digits themselves
     badge.Count = badge:CreateFontString(nil, "OVERLAY")
     badge.Count:SetFontObject(UI.Font.body)
-    badge.Count:SetPoint("CENTER")
+    local shadowX = badge.Count:GetShadowOffset()
+    badge.Count:SetPoint("CENTER", badge, "CENTER", shadowX / 2, 0)
     -- Blizzard's Filter button sizes itself to its text, so a Stats button beside it can sit between pixels. Rounding
     -- the badge and its circle to whole pixels gives the number the same centre in every list
     for _, region in ipairs({ badge, background }) do
