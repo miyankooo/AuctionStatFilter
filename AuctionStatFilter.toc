@@ -5,6 +5,7 @@
 ## Version: @project-version@
 ## Category: Auctions
 ## IconTexture: Interface\Icons\inv_misc_punchcards_white
+## X-Curse-Project-ID: 1791292
 ## OptionalDeps: Auctionator
 ## SavedVariables: AuctionStatFilterDB
 
