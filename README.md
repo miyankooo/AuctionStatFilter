@@ -8,6 +8,7 @@ A WoW Forever addon that filters Auction House results by the item stats you wan
 
 - A Stats button beside the Auction House's own Filter button, with the stats sorted into Attributes, Attack, Spell and Defense.
 - A badge on the Stats button counts the stats you picked.
+- The first time you open the Auction House, a tip points you to the Stats button.
 - Gear without your stats fades out, in Blizzard's search results and in Auctionator's Shopping tab, so you always see that a filter is on.
 - Match All keeps gear with every stat you ticked, Match Any gear with at least one.
 - Spell Power counts for every spell school.

@@ -64,7 +64,8 @@ ns.Filter.version = 0
 
 local dropdowns = {}
 
--- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR" }. A saved stat the menu no longer offers is dropped once per session
+-- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once ns.Tip is done }. A saved
+-- stat the menu no longer offers is dropped once per session
 local cleaned
 local function db()
     if type(AuctionStatFilterDB) ~= "table" then AuctionStatFilterDB = {} end
@@ -79,6 +80,7 @@ local function db()
     end
     return saved
 end
+ns.Filter.Saved = db
 
 local function isActive()
     return next(db().stats) ~= nil

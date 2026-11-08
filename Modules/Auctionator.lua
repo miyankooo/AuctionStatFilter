@@ -20,6 +20,8 @@ local function ensure()
     if not dropdown and shopping.ExportCSV then
         dropdown = ns.Filter.CreateDropdown(shopping.ExportCSV)
         dropdown:SetPoint("RIGHT", shopping.ExportCSV, "LEFT", -UI.Space.gap, 0)
+        -- The button sits at the bottom of the window, so the tip points down at it from the results
+        ns.Tip.Attach(dropdown, HelpTip.Point.TopEdgeCenter)
     end
     local listing = shopping.ResultsListing
     if not fading and listing and listing.ScrollArea and listing.ScrollArea.ScrollBox then

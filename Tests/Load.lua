@@ -1,5 +1,5 @@
 -- Offline smoke test: loads every file in toc order against stubs of the WoW API, Blizzard's Auction House and
--- Auctionator, then checks the parser, the Stats menu and badge, and the faded rows in both lists.
+-- Auctionator, then checks the parser, the Stats menu, badge and first-run tip, and the faded rows in both lists.
 -- Run from the addon folder: lua Tests/Load.lua
 
 local failures = 0
@@ -31,6 +31,8 @@ function frameMethods:CreateTexture() local t = setmetatable({ scripts = {}, eve
 function frameMethods:CreateFontString() local f = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) return f end
 function frameMethods:Hide() self.shown = false end
 function frameMethods:IsShown() return self.shown end
+function frameMethods:IsVisible() return self.shown and (self.owner == nil or self.owner:IsVisible()) end
+function frameMethods:RegisterCallback(event, fn, owner) self.callbacks = self.callbacks or {} self.callbacks[event] = { fn = fn, owner = owner } end
 function frameMethods:SetText(text) self.text = text end
 function frameMethods:GetText() return self.text end
 function frameMethods:SetWidth(w) self.width = w end
@@ -45,9 +47,24 @@ function frameMethods:SetDefaultCallback(fn) self.defaultCallback = fn end
 function frameMethods:SetIsDefaultCallback(fn) self.isDefaultCallback = fn end
 function frameMethods:ValidateResetState() self.resetShown = not self.isDefaultCallback() end
 
+-- HelpTipTemplateMixin, as far as the addon calls it: Init takes the info, Acknowledge runs its callback and closes
+local helpTips = {}
+local function helpTip(frame)
+    function frame:Init(parent, info, relativeRegion) self.info, self.anchorParent, self.relativeRegion = info, parent, relativeRegion end
+    function frame:Acknowledge()
+        local info = self.info
+        self.info, self.shown = nil, false
+        if info.onAcknowledgeCallback then info.onAcknowledgeCallback(info.callbackArg) end
+    end
+    -- What the template's OnHide does when its button hides: close without acknowledging
+    function frame:CloseOnHide() self.info, self.shown = nil, false end
+    helpTips[#helpTips + 1] = frame
+end
+
 function CreateFrame(kind, name, parent, template)
     local frame = setmetatable({ scripts = {}, events = {}, shown = true, owner = parent, kind = kind, template = template }, frameMethods)
     if name then _G[name] = frame end
+    if template == "HelpTipTemplate" then frame.shown = false helpTip(frame) end
     return frame
 end
 
@@ -102,6 +119,8 @@ ITEM_MOD_FIRE_DAMAGE_DONE_SHORT = "Fire Damage"
 ITEM_MOD_DODGE_RATING_SHORT = "Dodge"
 
 Enum = { ItemClass = { Weapon = 2, Armor = 4, Consumable = 0 } }
+HelpTip = { width = 226, Point = { TopEdgeCenter = 2, BottomEdgeCenter = 5 }, ButtonStyle = { Close = 2 } }
+DropdownButtonMixin = { Event = { OnMenuOpen = "OnMenuOpen" } }
 
 -- Items by id: class and whether the client holds their data yet
 local items = {
@@ -172,6 +191,7 @@ local strong, robe, potion, late, empty = row(25), row(26), row(27), row(28), ro
 local browseRows = { strong, robe, potion, late, empty }
 
 AuctionHouseFrame = CreateFrame("Frame")
+AuctionHouseFrame.shown = false
 AuctionHouseFrame.SearchBar = CreateFrame("Frame", nil, AuctionHouseFrame)
 AuctionHouseFrame.SearchBar.FilterButton = CreateFrame("DropdownButton", nil, AuctionHouseFrame.SearchBar)
 AuctionHouseFrame.BrowseResultsFrame = CreateFrame("Frame", nil, AuctionHouseFrame)
@@ -252,6 +272,25 @@ menu.items[1].setSelected("AND")
 paint()
 check("Match All needs both", robe.alpha < 1 and strong.alpha < 1)
 
+-- ===== First-run tip =====
+check("no tip while the Auction House is closed", #helpTips == 0, #helpTips)
+AuctionHouseFrame.shown = true
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+local tip = helpTips[1]
+check("the tip shows with the Stats button", tip and tip.shown and tip.owner == blizzardDropdown and tip.relativeRegion == blizzardDropdown)
+check("it is Blizzard's help tip at its own width", tip.template == "HelpTipTemplate" and tip.width == HelpTip.width)
+check("it points up at Stats, with a close button", tip.info.targetPoint == HelpTip.Point.BottomEdgeCenter and tip.info.buttonStyle == HelpTip.ButtonStyle.Close)
+check("its text is a plain sentence", tip.info.text:match("^%u.*%.$") ~= nil and not tip.info.text:find("[\128-\255]"), tip.info.text)
+tip:CloseOnHide()
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("closing the Auction House brings it back next visit", tip.shown and tip.info and #helpTips == 1)
+local menuOpen = blizzardDropdown.callbacks.OnMenuOpen
+check("the menu callback has an owner of its own", menuOpen and type(menuOpen.owner) == "table")
+menuOpen.fn()
+check("opening Stats closes it for good", not tip.shown and AuctionStatFilterDB.tipSeen == true)
+blizzardDropdown.scripts.OnShow(blizzardDropdown)
+check("a seen tip never returns", not tip.shown and #helpTips == 1)
+
 -- ===== Auctionator's Shopping tab =====
 local shoppingRows = {}
 AuctionatorShoppingFrame = CreateFrame("Frame")
@@ -261,6 +300,8 @@ AuctionatorShoppingFrame.ResultsListing.ScrollArea = { ScrollBox = { ForEachFram
 
 local events = eventFrames[#eventFrames]
 check("setup waits for the Auction House", events.events.AUCTION_HOUSE_SHOW)
+-- A fresh account opens Auctionator first: its Stats button is made while its tab already shows
+AuctionStatFilterDB.tipSeen = nil
 CreateFrame = function(kind, name, parent, template)
     local frame = createFrame(kind, name, parent, template)
     if parent == AuctionatorShoppingFrame.ResultsListing then painters[#painters + 1] = frame end
@@ -273,6 +314,13 @@ check("one more painter, on the Shopping results", #painters == 2, #painters)
 local shoppingDropdown = dropdowns[2]
 check("Stats sits left of Export Results", shoppingDropdown and shoppingDropdown.points.RIGHT[1] == AuctionatorShoppingFrame.ExportCSV and shoppingDropdown.owner == AuctionatorShoppingFrame.ExportCSV)
 check("its badge starts with the saved stats", shoppingDropdown.Badge.shown and tostring(shoppingDropdown.Badge.Count.text) == "2")
+local shoppingTip = helpTips[2]
+check("the tip shows at once on a button made while visible", shoppingTip and shoppingTip.shown and shoppingTip.owner == shoppingDropdown)
+check("it points down at Stats from the results", shoppingTip.info.targetPoint == HelpTip.Point.TopEdgeCenter)
+shoppingTip:Acknowledge()
+check("its close button marks it seen", AuctionStatFilterDB.tipSeen == true and not shoppingTip.shown)
+shoppingDropdown.callbacks.OnMenuOpen.fn()
+check("opening Stats after that changes nothing", AuctionStatFilterDB.tipSeen == true)
 
 -- Both stats chosen, Match All: Spell Power covers Fire Damage, so only gear with Strength and Spell Power passes
 items[29] = { class = 4, cached = false, lines = { "Slow Belt", "+4 Strength", "Increases spell power by 3." } }
