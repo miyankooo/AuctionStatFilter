@@ -5,7 +5,10 @@ ns.Filter = {}
 
 -- Fixed on the grid, narrow enough to fit between Blizzard's search box and its own Filter button
 local DROPDOWN_WIDTH = 80
+-- Between Stats and the button on its right
+local GAP = 8
 local DROPDOWN_LABEL = "Stats"
+local TIP_TEXT = "Pick item stats here to fade out gear without them."
 
 -- The stats on offer in the character sheet's categories; each key is one ns.ItemStats reads
 local CATEGORIES = {
@@ -54,7 +57,7 @@ ns.Filter.version = 0
 
 local dropdowns = {}
 
--- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once ns.Tip is done } in
+-- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once the tip is done } in
 -- ns.db from ADDON_LOADED on. A saved stat the menu no longer offers is dropped
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
     if type(AuctionStatFilterDB) ~= "table" then AuctionStatFilterDB = {} end
@@ -172,10 +175,47 @@ local function CreateCountBadge(button)
     return badge
 end
 
+-- One owner for the menu callbacks, so the registry takes it instead of counting up an id of Blizzard's own
+local callbackOwner = {}
+
+-- Blizzard's yellow help tip, the one the Auction House uses for its undercut tip
+-- (Blizzard_AuctionHouseUI/Shared/Blizzard_AuctionHouseSellFrame.lua:507), with the close button. An own
+-- HelpTipTemplate frame of the target, never HelpTip:Show, which takes a frame from Blizzard's shared pool, and
+-- writing to that pool from addon code taints the help tips Blizzard shows later. It shows each time the target shows
+-- until the player closes it or opens the menu, then never again on the account; it hides with the target unmarked.
+local function AttachTip(target, text, targetPoint)
+    local tip
+    local info = {
+        text = text,
+        buttonStyle = HelpTip.ButtonStyle.Close,
+        targetPoint = targetPoint,
+        onAcknowledgeCallback = function() ns.db.tipSeen = true end,
+    }
+    local function ShowTip()
+        if ns.db.tipSeen then return end
+        if not tip then
+            tip = CreateFrame("Frame", nil, target, "HelpTipTemplate")
+            tip.width = HelpTip.width
+            tip:SetWidth(tip.width)
+        end
+        tip:Init(target, info, target)
+        tip:Show()
+    end
+    target:HookScript("OnShow", ShowTip)
+    -- Opening the menu is using the feature
+    target:RegisterCallback(DropdownButtonMixin.Event.OnMenuOpen, function()
+        if tip and tip.info then tip:Acknowledge() else ns.db.tipSeen = true end
+    end, callbackOwner)
+    -- Auctionator's button can be made while its tab already shows, so it gets no OnShow of its own
+    if target:IsVisible() then ShowTip() end
+end
+
 -- Blizzard's Filter button, labelled Stats, with one submenu per stat category, as the Collections filters group
--- long lists. Its reset button clears every stat, its badge counts them
-function ns.Filter.CreateDropdown(parent)
+-- long lists, one gap left of neighbour. Its reset button clears every stat, its badge counts them, and its help tip
+-- points from tipPoint, a HelpTip.Point
+function ns.Filter.CreateDropdown(parent, neighbour, tipPoint)
     local dropdown = CreateFilterDropdown(parent, DROPDOWN_WIDTH)
+    dropdown:SetPoint("RIGHT", neighbour, "LEFT", -GAP, 0)
     dropdown:SetText(DROPDOWN_LABEL)
     dropdown:SetDefaultCallback(clearStats)
     dropdown:SetIsDefaultCallback(function() return not isActive() end)
@@ -194,5 +234,6 @@ function ns.Filter.CreateDropdown(parent)
     dropdown.Badge = CreateCountBadge(dropdown)
     updateBadge(dropdown)
     dropdowns[#dropdowns + 1] = dropdown
+    AttachTip(dropdown, TIP_TEXT, tipPoint)
     return dropdown
 end

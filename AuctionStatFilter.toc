@@ -12,6 +12,5 @@
 Modules\ItemStats.lua
 Modules\Filter.lua
 Modules\Fade.lua
-Modules\Tip.lua
 Modules\AuctionHouse.lua
 Modules\Auctionator.lua
