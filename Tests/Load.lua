@@ -1,5 +1,6 @@
 -- Offline smoke test: loads every file in toc order against stubs of the WoW API, Blizzard's Auction House and
--- Auctionator, then checks the parser, the Stats menu, badge and first-run tip, and the faded rows in both lists.
+-- Auctionator, then checks the parser, the Stats menu, badge, tooltips and first-run tip, and the faded rows in both
+-- lists. The welcome line and /asf are in Tests/Chat.lua.
 -- Run from the addon folder: lua Tests/Load.lua
 
 local failures = 0
@@ -71,6 +72,7 @@ function CreateFrame(kind, name, parent, template)
     local frame = setmetatable({ scripts = {}, events = {}, shown = true, owner = parent, kind = kind, template = template }, frameMethods)
     if name then _G[name] = frame end
     if template == "HelpTipTemplate" then frame.shown = false helpTip(frame) end
+    if template == "WowStyle1FilterDropdownTemplate" then frame.ResetButton = CreateFrame("Button", nil, frame) end
     return frame
 end
 
@@ -79,7 +81,11 @@ UIParent = CreateFrame("Frame")
 -- A menu description stand-in that records what the generator builds
 local function description(text)
     local d = { text = text, items = {} }
-    local function add(entry) table.insert(d.items, entry) return entry end
+    local function add(entry)
+        function entry:SetTooltip(fill) self.tooltip = fill end
+        table.insert(d.items, entry)
+        return entry
+    end
     function d:CreateRadio(label, isSelected, setSelected, data) return add({ kind = "radio", text = label, isSelected = isSelected, setSelected = setSelected, data = data }) end
     function d:CreateCheckbox(label, isSelected, setSelected, data) return add({ kind = "checkbox", text = label, isSelected = isSelected, setSelected = setSelected, data = data }) end
     function d:CreateDivider() return add({ kind = "divider" }) end
@@ -111,7 +117,19 @@ end
 HIGHLIGHT_FONT_COLOR, GREEN_FONT_COLOR, RED_FONT_COLOR = color("white"), color("green"), color("red")
 GRAY_FONT_COLOR, YELLOW_FONT_COLOR, NORMAL_FONT_COLOR, WARNING_FONT_COLOR = color("gray"), color("yellow"), color("gold"), color("warn")
 
-FILTER = "Filter"
+FILTER, CLEAR_ALL = "Filter", "Clear All"
+
+-- GameTooltip and Blizzard's line helpers, recording the owner, anchor and lines
+GameTooltip = { SetOwner = function(self, owner, anchor) self.owner, self.anchor, self.lines = owner, anchor, {} end }
+function GameTooltip:Show() self.shown = true end
+function GameTooltip_SetTitle(tooltip, text) tooltip.lines = { text } end
+function GameTooltip_AddNormalLine(tooltip, text) tooltip.lines[#tooltip.lines + 1] = text end
+function GameTooltip_Hide() GameTooltip.shown = false end
+-- A tooltip's title and help, or nil with any other shape
+local function tooltipText(tooltip)
+    local lines = tooltip.lines
+    if #lines == 2 and lines[2]:match("^%u.*%.$") then return lines[1], lines[2] end
+end
 SPELL_STAT1_NAME, SPELL_STAT2_NAME, SPELL_STAT3_NAME, SPELL_STAT4_NAME, SPELL_STAT5_NAME = "Strength", "Agility", "Stamina", "Intellect", "Spirit"
 STAT_CATEGORY_ATTRIBUTES, STAT_CATEGORY_ATTACK, STAT_CATEGORY_SPELL, STAT_CATEGORY_DEFENSE = "Attributes", "Attack", "Spell", "Defense"
 ITEM_SPELL_TRIGGER_ONEQUIP, ITEM_SPELL_TRIGGER_ONUSE, ITEM_SPELL_TRIGGER_ONPROC = "Equip:", "Use:", "Chance on hit:"
@@ -245,6 +263,22 @@ check("badge and circle round to whole pixels", badge.rounded and badge.texture.
 
 local menu = openMenu(blizzardDropdown)
 check("menu starts with Match All and Match Any", menu.items[1].text == "Match All" and menu.items[2].text == "Match Any" and menu.items[3].kind == "divider")
+
+-- ===== Tooltips =====
+local function hover(frame)
+    frame.scripts.OnEnter(frame)
+    local owner, anchor, shown = GameTooltip.owner, GameTooltip.anchor, GameTooltip.shown
+    local title, help = tooltipText(GameTooltip)
+    frame.scripts.OnLeave(frame)
+    return owner == frame and anchor == "ANCHOR_RIGHT" and shown and not GameTooltip.shown and title, help
+end
+check("Stats has a tooltip, its title and one help line", hover(blizzardDropdown) == "Stats")
+check("its reset button has one too", hover(blizzardDropdown.ResetButton) == CLEAR_ALL)
+for index = 1, 2 do
+    local radio, tooltip = menu.items[index], { lines = {} }
+    if radio.tooltip then radio.tooltip(tooltip) end
+    check(radio.text .. " explains itself in a tooltip", tooltipText(tooltip) == radio.text)
+end
 check("one submenu per stat category", menu.items[4].text == "Attributes" and menu.items[7].text == "Defense" and #menu.items == 7)
 check("a stat without a client name is left out", #menu.items[4].items == 5 and #menu.items[7].items == 1, #menu.items[7].items)
 

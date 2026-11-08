@@ -10,6 +10,12 @@ local GAP = 8
 local DROPDOWN_LABEL = "Stats"
 local TIP_TEXT = "Pick item stats here to fade out gear without them."
 
+-- How the chosen stats combine, the radios at the top of the menu
+local LOGIC = {
+    { label = "Match All", logic = "AND", help = "Gear fades unless it has every stat you tick." },
+    { label = "Match Any", logic = "OR", help = "Gear fades unless it has at least one stat you tick." },
+}
+
 -- The stats on offer in the character sheet's categories; each key is one ns.ItemStats reads
 local CATEGORIES = {
     { STAT_CATEGORY_ATTRIBUTES, { "strength", "agility", "stamina", "intellect", "spirit" } },
@@ -140,6 +146,17 @@ local function clearStats()
     changed()
 end
 
+-- A GameTooltip owned by the hovered frame, filled with Blizzard's GameTooltip_* line helpers. A frame whose
+-- template already sets OnEnter gets HookScript instead.
+local function AttachTooltip(frame, fill, anchor)
+    frame:HookScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, anchor or "ANCHOR_RIGHT")
+        fill(GameTooltip, self)
+        GameTooltip:Show()
+    end)
+    frame:HookScript("OnLeave", GameTooltip_Hide)
+end
+
 -- Rounds a length derived from text up to the 4 px grid.
 local function Snap(length)
     return math.ceil(length / 4) * 4
@@ -222,8 +239,12 @@ function ns.Filter.CreateDropdown(parent, neighbour, tipPoint)
     dropdown:SetDefaultCallback(clearStats)
     dropdown:SetIsDefaultCallback(function() return not isActive() end)
     dropdown:SetupMenu(function(_, root)
-        root:CreateRadio("Match All", isLogic, setLogic, "AND")
-        root:CreateRadio("Match Any", isLogic, setLogic, "OR")
+        for _, option in ipairs(LOGIC) do
+            root:CreateRadio(option.label, isLogic, setLogic, option.logic):SetTooltip(function(tooltip)
+                GameTooltip_SetTitle(tooltip, option.label)
+                GameTooltip_AddNormalLine(tooltip, option.help)
+            end)
+        end
         root:CreateDivider()
         for _, category in ipairs(CATEGORIES) do
             local submenu = root:CreateButton(category[1])
@@ -232,6 +253,16 @@ function ns.Filter.CreateDropdown(parent, neighbour, tipPoint)
                 if LABELS[key] then submenu:CreateCheckbox(LABELS[key], isChecked, toggle, key) end
             end
         end
+    end)
+    -- The template's OnEnter drives the button's art, so the tooltips hook in after it
+    AttachTooltip(dropdown, function(tooltip)
+        GameTooltip_SetTitle(tooltip, DROPDOWN_LABEL)
+        GameTooltip_AddNormalLine(tooltip, "Fades out gear without the stats you tick. Items that are not gear, such "
+            .. "as consumables, always stay.")
+    end)
+    AttachTooltip(dropdown.ResetButton, function(tooltip)
+        GameTooltip_SetTitle(tooltip, CLEAR_ALL)
+        GameTooltip_AddNormalLine(tooltip, "Clears every stat, so no gear fades.")
     end)
     dropdown.Badge = CreateCountBadge(dropdown)
     updateBadge(dropdown)
