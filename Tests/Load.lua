@@ -27,6 +27,10 @@ function frameMethods:Show() self.shown = true end
 function frameMethods:SetShown(shown) self.shown = shown and true or false end
 function frameMethods:SetSize(w, h) self.width, self.height = w, h end
 function frameMethods:SetAtlas(atlas) self.atlas = atlas end
+function frameMethods:SetAllPoints() self.allPoints = true end
+function frameMethods:SetJustifyH(justify) self.justifyH = justify end
+function frameMethods:SetJustifyV(justify) self.justifyV = justify end
+function frameMethods:SetRoundLayoutToNearestPixel(on) self.rounded = on end
 function frameMethods:CreateTexture() local t = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) self.texture = t return t end
 function frameMethods:CreateFontString() local f = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) return f end
 function frameMethods:Hide() self.shown = false end
@@ -226,6 +230,8 @@ check("Stats is Blizzard's filter button, on the grid", blizzardDropdown.templat
 local badge = blizzardDropdown.Badge
 check("the badge is Blizzard's counter on the top left corner", badge.texture.atlas == "tokens-counterBG" and badge.points.CENTER[1] == blizzardDropdown and badge.points.CENTER[2] == "TOPLEFT" and badge.width % 4 == 0)
 check("no stat, no badge", badge.shown == false)
+check("the number centres in the circle's own box", badge.Count.allPoints and badge.texture.allPoints and badge.Count.justifyH == "CENTER" and badge.Count.justifyV == "MIDDLE")
+check("circle and number round to whole pixels", badge.rounded and badge.texture.rounded and badge.Count.rounded)
 
 local menu = openMenu(blizzardDropdown)
 check("menu starts with Match All and Match Any", menu.items[1].text == "Match All" and menu.items[2].text == "Match Any" and menu.items[3].kind == "divider")

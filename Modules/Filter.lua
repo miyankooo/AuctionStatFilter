@@ -158,9 +158,17 @@ local function createBadge(dropdown)
     local background = badge:CreateTexture(nil, "ARTWORK")
     background:SetAtlas(BADGE_ATLAS)
     background:SetAllPoints()
+    -- The number fills the circle's own box and centres in it, so both share one rectangle
     badge.Count = badge:CreateFontString(nil, "OVERLAY")
     badge.Count:SetFontObject(UI.Font.body)
-    badge.Count:SetPoint("CENTER")
+    badge.Count:SetAllPoints()
+    badge.Count:SetJustifyH("CENTER")
+    badge.Count:SetJustifyV("MIDDLE")
+    -- Blizzard's Filter button sizes itself to its text, so a Stats button beside it can sit between pixels, and the
+    -- circle and the number would then snap to different ones. Rounding the badge's layout keeps them on one grid
+    for _, region in ipairs({ badge, background, badge.Count }) do
+        region:SetRoundLayoutToNearestPixel(true)
+    end
     return badge
 end
 
