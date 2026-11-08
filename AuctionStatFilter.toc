@@ -12,5 +12,6 @@ Libs\LibStub\LibStub.lua
 Libs\LibNativeUI-1.0\LibNativeUI-1.0.lua
 Modules\ItemStats.lua
 Modules\Filter.lua
+Modules\Fade.lua
 Modules\AuctionHouse.lua
 Modules\Auctionator.lua

@@ -1,5 +1,5 @@
 -- Offline smoke test: loads every file in toc order against stubs of the WoW API, Blizzard's Auction House and
--- Auctionator, then checks the parser, the Stats menu, the dimmed browse rows and the filtered Shopping results.
+-- Auctionator, then checks the parser, the Stats menu and badge, and the faded rows in both lists.
 -- Run from the addon folder: lua Tests/Load.lua
 
 local failures = 0
@@ -24,6 +24,11 @@ function frameMethods:HookScript(kind, fn)
     self.scripts[kind] = function(...) if old then old(...) end fn(...) end
 end
 function frameMethods:Show() self.shown = true end
+function frameMethods:SetShown(shown) self.shown = shown and true or false end
+function frameMethods:SetSize(w, h) self.width, self.height = w, h end
+function frameMethods:SetAtlas(atlas) self.atlas = atlas end
+function frameMethods:CreateTexture() local t = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) self.texture = t return t end
+function frameMethods:CreateFontString() local f = setmetatable({ scripts = {}, events = {}, shown = true, owner = self }, frameMethods) return f end
 function frameMethods:Hide() self.shown = false end
 function frameMethods:IsShown() return self.shown end
 function frameMethods:SetText(text) self.text = text end
@@ -119,18 +124,12 @@ C_TooltipInfo = {
         return { lines = lines }
     end,
 }
-local itemLoads = {}
-Item = { CreateFromItemID = function(_, id) return { ContinueOnItemLoad = function(_, fn) itemLoads[#itemLoads + 1] = { id = id, fn = fn } end } end }
 
 local addonLoaded = {}
 EventUtil = { ContinueOnAddOnLoaded = function(name, fn) addonLoaded[name] = addonLoaded[name] or {} table.insert(addonLoaded[name], fn) end }
 
 -- ===== Auctionator =====
-local listeners = {}
-Auctionator = {
-    EventBus = { Register = function(_, listener, events) for _, e in ipairs(events) do listeners[e] = listener end end },
-    Shopping = { Tab = { Events = { SearchStart = "SearchStart" } } },
-}
+Auctionator = {}
 
 -- ===== Load in toc order =====
 local ns = {}
@@ -204,6 +203,9 @@ local dropdowns = upvalue(ns.Filter.CreateDropdown, "dropdowns")
 local blizzardDropdown = dropdowns[1]
 check("Stats sits left of Blizzard's Filter button", blizzardDropdown.points.RIGHT[1] == AuctionHouseFrame.SearchBar.FilterButton and blizzardDropdown.points.RIGHT[2] == "LEFT" and blizzardDropdown.points.RIGHT[3] % 4 == 0)
 check("Stats is Blizzard's filter button, on the grid", blizzardDropdown.template == "WowStyle1FilterDropdownTemplate" and blizzardDropdown.text == "Stats" and blizzardDropdown.width % 4 == 0, blizzardDropdown.width)
+local badge = blizzardDropdown.Badge
+check("the badge is Blizzard's counter on the top left corner", badge.texture.atlas == "tokens-counterBG" and badge.points.CENTER[1] == blizzardDropdown and badge.points.CENTER[2] == "TOPLEFT" and badge.width % 4 == 0)
+check("no stat, no badge", badge.shown == false)
 
 local menu = openMenu(blizzardDropdown)
 check("menu starts with Match All and Match Any", menu.items[1].text == "Match All" and menu.items[2].text == "Match Any" and menu.items[3].kind == "divider")
@@ -211,18 +213,19 @@ check("one submenu per stat category", menu.items[4].text == "Attributes" and me
 check("a stat without a client name is left out", #menu.items[4].items == 5 and #menu.items[7].items == 1, #menu.items[7].items)
 
 paint()
-check("no filter, no dimming", strong.alpha == 1 and robe.alpha == 1 and late.alpha == 1)
+check("no filter, no fading", strong.alpha == 1 and robe.alpha == 1 and late.alpha == 1)
 
 local strength = menu.items[4].items[1]
 strength.setSelected(strength.data)
 check("ticking a stat saves it", AuctionStatFilterDB.stats.strength == true and strength.isSelected(strength.data))
 check("the reset button shows with a stat chosen", blizzardDropdown.resetShown == true)
+check("the badge shows one stat", badge.shown and tostring(badge.Count.text) == "1", badge.Count.text)
 paint()
-check("an item without the stat is dimmed", robe.alpha < 1)
+check("an item without the stat fades", robe.alpha < 1)
 check("an item with the stat stays", strong.alpha == 1)
 check("consumables always stay", potion.alpha == 1)
 check("an empty row stays", empty.alpha == 1)
-check("an uncached item waits instead of dimming", late.alphaSets == 1 and late.alpha == 1)
+check("an uncached item waits instead of fading", late.alphaSets == 1 and late.alpha == 1)
 paint()
 paint()
 check("its data is asked for once", loadRequests == 1, loadRequests)
@@ -238,63 +241,63 @@ strength.setSelected(strength.data)
 fire.setSelected(fire.data)
 paint()
 check("spell power meets a school filter", robe.alpha == 1 and strong.alpha < 1)
+check("the badge counts every stat", tostring(badge.Count.text) == "1")
 
 menu.items[2].setSelected("OR")
 strength.setSelected(strength.data)
 paint()
 check("Match Any passes either stat", AuctionStatFilterDB.logic == "OR" and robe.alpha == 1 and strong.alpha == 1)
+check("two stats, badge 2", tostring(badge.Count.text) == "2", badge.Count.text)
 menu.items[1].setSelected("AND")
 paint()
 check("Match All needs both", robe.alpha < 1 and strong.alpha < 1)
 
 -- ===== Auctionator's Shopping tab =====
+local shoppingRows = {}
 AuctionatorShoppingFrame = CreateFrame("Frame")
 AuctionatorShoppingFrame.ExportCSV = CreateFrame("Button")
-local shopping = {
-    rows = {},
-    Reset = function(self) self.rows = {} end,
-    AppendEntries = function(self, entries) for _, e in ipairs(entries) do table.insert(self.rows, e) end end,
-}
-AuctionatorShoppingFrame.DataProvider = shopping
+AuctionatorShoppingFrame.ResultsListing = CreateFrame("Frame", nil, AuctionatorShoppingFrame)
+AuctionatorShoppingFrame.ResultsListing.ScrollArea = { ScrollBox = { ForEachFrame = function(_, fn) for _, r in ipairs(shoppingRows) do fn(r) end end } }
 
 local events = eventFrames[#eventFrames]
 check("setup waits for the Auction House", events.events.AUCTION_HOUSE_SHOW)
+CreateFrame = function(kind, name, parent, template)
+    local frame = createFrame(kind, name, parent, template)
+    if parent == AuctionatorShoppingFrame.ResultsListing then painters[#painters + 1] = frame end
+    return frame
+end
 events.scripts.OnEvent(events, "AUCTION_HOUSE_SHOW")
+CreateFrame = createFrame
 check("setup done on the first visit", not events.events.AUCTION_HOUSE_SHOW)
+check("one more painter, on the Shopping results", #painters == 2, #painters)
 local shoppingDropdown = dropdowns[2]
 check("Stats sits left of Export Results", shoppingDropdown and shoppingDropdown.points.RIGHT[1] == AuctionatorShoppingFrame.ExportCSV and shoppingDropdown.owner == AuctionatorShoppingFrame.ExportCSV)
+check("its badge starts with the saved stats", shoppingDropdown.Badge.shown and tostring(shoppingDropdown.Badge.Count.text) == "2")
 
-local function entry(itemID) return { itemKey = { itemID = itemID, itemLevel = 0, itemSuffix = 0 } } end
-listeners.SearchStart:ReceiveEvent("SearchStart")
-items[29] = { class = 4, cached = false, lines = { "Slow Belt", "+4 Strength", "+2 Fire Damage" } }
+-- Both stats chosen, Match All: Spell Power covers Fire Damage, so only gear with Strength and Spell Power passes
+items[29] = { class = 4, cached = false, lines = { "Slow Belt", "+4 Strength", "Increases spell power by 3." } }
 tooltipBuilds = 0
-shopping:AppendEntries({ entry(25), entry(26), entry(27), entry(29) })
-check("only results with the stats are listed", #shopping.rows == 1 and shopping.rows[1].itemKey.itemID == 27, #shopping.rows)
+local vest, cloth, drink, belt = row(25), row(26), row(27), row(29)
+shoppingRows = { vest, cloth, drink, belt }
+paint()
+check("Shopping rows without the stats fade", vest.alpha < 1 and cloth.alpha < 1)
+check("Shopping consumables stay", drink.alpha == 1)
+check("an uncached Shopping item waits instead of fading", belt.alphaSets == nil)
 items[29].cached = true
-itemLoads[#itemLoads].fn()
-check("a late item joins once loaded, if it passes", #shopping.rows == 2 and shopping.rows[2].itemKey.itemID == 29, #shopping.rows)
+paint()
+check("it is checked once its data arrives", belt.alpha == 1)
+check("both lists share each key's stats, read once", tooltipBuilds == 1, tooltipBuilds)
 
 openMenu(shoppingDropdown).items[2].setSelected("OR")
-check("a change rebuilds the list without a new search", #shopping.rows == 4, #shopping.rows)
--- Items 25 and 26 were read for Blizzard's list already, 27 is no gear, so only 29 builds a tooltip
-check("both lists share each key's stats, read once", tooltipBuilds == 1, tooltipBuilds)
+paint()
+check("a change refades without a new search", vest.alpha == 1 and cloth.alpha == 1 and belt.alpha == 1)
+check("every Shopping row stays listed", #shoppingRows == 4)
 
 shoppingDropdown.defaultCallback()
 check("reset clears every stat", next(AuctionStatFilterDB.stats) == nil and not blizzardDropdown.resetShown and not shoppingDropdown.resetShown)
-check("reset lists everything again", #shopping.rows == 4)
+check("reset hides both badges", not badge.shown and not shoppingDropdown.Badge.shown)
 paint()
-check("reset undims Blizzard's rows", robe.alpha == 1 and strong.alpha == 1)
-
-listeners.SearchStart:ReceiveEvent("SearchStart")
-shopping:Reset()
-local loadsBefore = #itemLoads
-items[30] = { class = 2, cached = false, lines = { "Sword" } }
-strength.setSelected(strength.data)
-shopping:AppendEntries({ entry(30) })
-listeners.SearchStart:ReceiveEvent("SearchStart")
-items[30].cached = true
-itemLoads[#itemLoads].fn()
-check("an item that loads after a new search stays out", #itemLoads == loadsBefore + 1 and #shopping.rows == 0, #shopping.rows)
+check("reset unfades both lists", robe.alpha == 1 and strong.alpha == 1 and vest.alpha == 1 and cloth.alpha == 1)
 
 runNextFrame()
 print(failures == 0 and "All checks passed." or (failures .. " checks failed."))

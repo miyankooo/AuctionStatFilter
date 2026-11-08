@@ -9,6 +9,14 @@ ns.Filter = {}
 local DROPDOWN_WIDTH = 80
 local DROPDOWN_LABEL = "Stats"
 
+-- The count badge Blizzard puts on a button's corner, as on the shop's cart button
+-- (Blizzard_GenericShoppingCart/Blizzard_GenericShoppingCartTemplates.xml:255). It sits on the top left corner,
+-- mirroring the reset button on the top right (Blizzard_Menu/Mainline/MenuTemplates.xml:85); both Blizzard pieces sit
+-- 3px in from their corner, the one offset here off the grid
+local BADGE_ATLAS = "tokens-counterBG"
+local BADGE_SIZE = 24
+local BADGE_INSET = 3
+
 -- The stats on offer in the character sheet's categories; each key is one ns.ItemStats reads
 local CATEGORIES = {
     { STAT_CATEGORY_ATTRIBUTES, { "strength", "agility", "stamina", "intellect", "spirit" } },
@@ -54,7 +62,7 @@ local LABELS = {
 -- Bumps on every change, so the lists know when to filter again
 ns.Filter.version = 0
 
-local listeners, dropdowns = {}, {}
+local dropdowns = {}
 
 -- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR" }. A saved stat the menu no longer offers is dropped once per session
 local cleaned
@@ -75,17 +83,27 @@ end
 local function isActive()
     return next(db().stats) ~= nil
 end
-ns.Filter.IsActive = isActive
 
-local function changed()
-    ns.Filter.version = ns.Filter.version + 1
-    for _, dropdown in ipairs(dropdowns) do dropdown:ValidateResetState() end
-    for _, listener in ipairs(listeners) do listener() end
+local function activeCount()
+    local count = 0
+    for _ in pairs(db().stats) do count = count + 1 end
+    return count
 end
 
--- Runs after every change to the chosen stats or the logic
-function ns.Filter.OnChange(listener)
-    listeners[#listeners + 1] = listener
+-- Shows the number of chosen stats, and nothing while none is chosen, like the reset button
+local function updateBadge(dropdown)
+    local count = activeCount()
+    dropdown.Badge.Count:SetText(count)
+    dropdown.Badge:SetShown(count > 0)
+end
+
+-- The lists read the version on their next frame; the buttons update at once
+local function changed()
+    ns.Filter.version = ns.Filter.version + 1
+    for _, dropdown in ipairs(dropdowns) do
+        dropdown:ValidateResetState()
+        updateBadge(dropdown)
+    end
 end
 
 -- A school filter is also met by generic spell power, which boosts every school
@@ -130,8 +148,22 @@ local function clearStats()
     changed()
 end
 
+-- A child frame of the addon's own button, so the badge shows and hides as one piece and never takes a click
+local function createBadge(dropdown)
+    local badge = CreateFrame("Frame", nil, dropdown)
+    badge:SetSize(BADGE_SIZE, BADGE_SIZE)
+    badge:SetPoint("CENTER", dropdown, "TOPLEFT", BADGE_INSET, 0)
+    local background = badge:CreateTexture(nil, "ARTWORK")
+    background:SetAtlas(BADGE_ATLAS)
+    background:SetAllPoints()
+    badge.Count = badge:CreateFontString(nil, "OVERLAY")
+    badge.Count:SetFontObject(UI.Font.body)
+    badge.Count:SetPoint("CENTER")
+    return badge
+end
+
 -- Blizzard's Filter button, labelled Stats, with one submenu per stat category, as the Collections filters group
--- long lists. Its reset button clears every stat
+-- long lists. Its reset button clears every stat, its badge counts them
 function ns.Filter.CreateDropdown(parent)
     local dropdown = UI.CreateFilterDropdown(parent, DROPDOWN_WIDTH)
     dropdown:SetText(DROPDOWN_LABEL)
@@ -149,6 +181,8 @@ function ns.Filter.CreateDropdown(parent)
             end
         end
     end)
+    dropdown.Badge = createBadge(dropdown)
+    updateBadge(dropdown)
     dropdowns[#dropdowns + 1] = dropdown
     return dropdown
 end
