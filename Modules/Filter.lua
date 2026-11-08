@@ -1,4 +1,4 @@
-local _, ns = ...
+local addonName, ns = ...
 
 -- The chosen stats and how they combine, shared by every auction list, and the Stats button that sets them
 ns.Filter = {}
@@ -54,31 +54,26 @@ ns.Filter.version = 0
 
 local dropdowns = {}
 
--- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once ns.Tip is done }. A saved
--- stat the menu no longer offers is dropped once per session
-local cleaned
-local function db()
+-- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once ns.Tip is done } in
+-- ns.db from ADDON_LOADED on. A saved stat the menu no longer offers is dropped
+EventUtil.ContinueOnAddOnLoaded(addonName, function()
     if type(AuctionStatFilterDB) ~= "table" then AuctionStatFilterDB = {} end
-    local saved = AuctionStatFilterDB
-    if type(saved.stats) ~= "table" then saved.stats = {} end
-    if saved.logic ~= "OR" then saved.logic = "AND" end
-    if not cleaned then
-        for key in pairs(saved.stats) do
-            if not LABELS[key] then saved.stats[key] = nil end
-        end
-        cleaned = true
+    local db = AuctionStatFilterDB
+    if type(db.stats) ~= "table" then db.stats = {} end
+    if db.logic ~= "OR" then db.logic = "AND" end
+    for key in pairs(db.stats) do
+        if not LABELS[key] then db.stats[key] = nil end
     end
-    return saved
-end
-ns.Filter.Saved = db
+    ns.db = db
+end)
 
 local function isActive()
-    return next(db().stats) ~= nil
+    return next(ns.db.stats) ~= nil
 end
 
 local function activeCount()
     local count = 0
-    for _ in pairs(db().stats) do count = count + 1 end
+    for _ in pairs(ns.db.stats) do count = count + 1 end
     return count
 end
 
@@ -115,28 +110,28 @@ function ns.Filter.Matches(itemKey)
     if not present then return nil end
 
     -- Match Any passes on the first stat found, Match All fails on the first one missing
-    local any = db().logic == "OR"
-    for key in pairs(db().stats) do
+    local any = ns.db.logic == "OR"
+    for key in pairs(ns.db.stats) do
         if hasStat(present, key) == any then return any end
     end
     return not any
 end
 
-local function isLogic(logic) return db().logic == logic end
+local function isLogic(logic) return ns.db.logic == logic end
 local function setLogic(logic)
-    db().logic = logic
+    ns.db.logic = logic
     changed()
 end
 
-local function isChecked(key) return db().stats[key] == true end
+local function isChecked(key) return ns.db.stats[key] == true end
 local function toggle(key)
-    local stats = db().stats
+    local stats = ns.db.stats
     stats[key] = not stats[key] or nil
     changed()
 end
 
 local function clearStats()
-    wipe(db().stats)
+    wipe(ns.db.stats)
     changed()
 end
 

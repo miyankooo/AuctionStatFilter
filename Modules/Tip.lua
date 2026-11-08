@@ -9,11 +9,11 @@ ns.Tip = {}
 local TEXT = "Pick item stats here to fade out gear without them."
 
 local function seen()
-    return ns.Filter.Saved().tipSeen == true
+    return ns.db.tipSeen == true
 end
 
 local function markSeen()
-    ns.Filter.Saved().tipSeen = true
+    ns.db.tipSeen = true
 end
 
 -- One owner for the menu callbacks, so the registry takes it instead of counting up an id of Blizzard's own

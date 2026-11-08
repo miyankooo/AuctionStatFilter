@@ -172,6 +172,8 @@ for line in io.lines("AuctionStatFilter.toc") do
 end
 CreateFrame = createFrame
 check("files load in toc order", true)
+for _, fn in ipairs(addonLoaded.AuctionStatFilter or {}) do fn() end
+check("the saved table is ready at ADDON_LOADED", ns.db == AuctionStatFilterDB and ns.db.logic == "AND" and next(ns.db.stats) == nil)
 
 local saved = Auctionator
 Auctionator = nil
