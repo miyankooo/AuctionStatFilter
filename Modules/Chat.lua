@@ -10,9 +10,12 @@ function ns.Print(message)
     print(NORMAL_FONT_COLOR:WrapTextInColorCode("[" .. ns.title .. "]") .. ": " .. message)
 end
 
+-- Where to start, the second sentence of the welcome line and the first of the help line
+local START = "Open the Auction House and click Stats, left of Filter, to pick them."
+
 local function PrintWelcome()
-    ns.Print("Fades out Auction House gear without the item stats you want. Open the Auction House and click Stats, "
-        .. "left of Filter, to pick them.")
+    ns.Print("Fades out Auction House gear without the item stats you want. " .. START
+        .. " Type /asf help for the commands.")
 end
 
 -- At login, after the client's own load lines
@@ -34,7 +37,7 @@ SLASH_AUCTIONSTATFILTER1, SLASH_AUCTIONSTATFILTER2 = "/auctionstatfilter", "/asf
 SlashCmdList.AUCTIONSTATFILTER = function(message)
     local command = strtrim(message or ""):lower()
     if command == "" or command == "help" or command == "?" then
-        ns.Print("Type /asf intro to see the welcome line and the tip again, or /asf help for this list.")
+        ns.Print(START .. " Type /asf intro to see the welcome line and the tip again, or /asf help for this list.")
     elseif command == "intro" then
         ReplayIntro()
     else

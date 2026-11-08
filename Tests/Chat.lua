@@ -44,8 +44,9 @@ local function login(saved)
 end
 
 -- ===== Welcome line =====
+local START = "Open the Auction House and click Stats, left of Filter, to pick them."
 local WELCOME = "<gold>[Auction Stat Filter]</gold>: Fades out Auction House gear without the item stats you want. "
-    .. "Open the Auction House and click Stats, left of Filter, to pick them."
+    .. START .. " Type /asf help for the commands."
 
 local loadLines, loginLines, ns = login(nil)
 check("the first load prints nothing", #loadLines == 0, #loadLines)
@@ -62,8 +63,8 @@ check("a later login prints nothing", #loginLines == 0, #loginLines)
 
 -- ===== Slash commands =====
 local function slash(message) return capture(function() SlashCmdList.AUCTIONSTATFILTER(message) end) end
-local HELP = "<gold>[Auction Stat Filter]</gold>: Type /asf intro to see the welcome line and the tip again, "
-    .. "or /asf help for this list."
+local HELP = "<gold>[Auction Stat Filter]</gold>: " .. START
+    .. " Type /asf intro to see the welcome line and the tip again, or /asf help for this list."
 
 check("/auctionstatfilter and /asf", SLASH_AUCTIONSTATFILTER1 == "/auctionstatfilter" and SLASH_AUCTIONSTATFILTER2 == "/asf")
 for _, word in ipairs({ "", "help", "?", "  Help " }) do
