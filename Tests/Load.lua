@@ -151,7 +151,11 @@ C_TooltipInfo = {
 }
 
 local addonLoaded = {}
-EventUtil = { ContinueOnAddOnLoaded = function(name, fn) addonLoaded[name] = addonLoaded[name] or {} table.insert(addonLoaded[name], fn) end }
+EventUtil = {
+    ContinueOnAddOnLoaded = function(name, fn) addonLoaded[name] = addonLoaded[name] or {} table.insert(addonLoaded[name], fn) end,
+    ContinueOnPlayerLogin = function() end,
+}
+C_AddOns = { GetAddOnMetadata = function() return "Auction Stat Filter" end }
 
 -- ===== Auctionator =====
 Auctionator = {}

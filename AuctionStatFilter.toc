@@ -9,6 +9,7 @@
 ## OptionalDeps: Auctionator
 ## SavedVariables: AuctionStatFilterDB
 
+Modules\Chat.lua
 Modules\ItemStats.lua
 Modules\Filter.lua
 Modules\Fade.lua

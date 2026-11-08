@@ -58,9 +58,11 @@ ns.Filter.version = 0
 local dropdowns = {}
 
 -- Account-wide { stats = { strength = true, ... }, logic = "AND" or "OR", tipSeen = true once the tip is done } in
--- ns.db from ADDON_LOADED on. A saved stat the menu no longer offers is dropped
+-- ns.db from ADDON_LOADED on. An absent table marks the account's first run, for the welcome line. A saved stat the
+-- menu no longer offers is dropped
 EventUtil.ContinueOnAddOnLoaded(addonName, function()
-    if type(AuctionStatFilterDB) ~= "table" then AuctionStatFilterDB = {} end
+    ns.firstRun = type(AuctionStatFilterDB) ~= "table"
+    if ns.firstRun then AuctionStatFilterDB = {} end
     local db = AuctionStatFilterDB
     if type(db.stats) ~= "table" then db.stats = {} end
     if db.logic ~= "OR" then db.logic = "AND" end
