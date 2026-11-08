@@ -230,8 +230,8 @@ check("Stats is Blizzard's filter button, on the grid", blizzardDropdown.templat
 local badge = blizzardDropdown.Badge
 check("the badge is Blizzard's counter on the top left corner", badge.texture.atlas == "tokens-counterBG" and badge.points.CENTER[1] == blizzardDropdown and badge.points.CENTER[2] == "TOPLEFT" and badge.width % 4 == 0)
 check("no stat, no badge", badge.shown == false)
-check("the number centres in the circle's own box", badge.Count.allPoints and badge.texture.allPoints and badge.Count.justifyH == "CENTER" and badge.Count.justifyV == "MIDDLE")
-check("circle and number round to whole pixels", badge.rounded and badge.texture.rounded and badge.Count.rounded)
+check("the number sits on the circle's centre", badge.Count.points.CENTER ~= nil and badge.texture.allPoints)
+check("badge and circle round to whole pixels", badge.rounded and badge.texture.rounded)
 
 local menu = openMenu(blizzardDropdown)
 check("menu starts with Match All and Match Any", menu.items[1].text == "Match All" and menu.items[2].text == "Match Any" and menu.items[3].kind == "divider")

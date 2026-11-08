@@ -158,15 +158,14 @@ local function createBadge(dropdown)
     local background = badge:CreateTexture(nil, "ARTWORK")
     background:SetAtlas(BADGE_ATLAS)
     background:SetAllPoints()
-    -- The number fills the circle's own box and centres in it, so both share one rectangle
+    -- The number sits on the circle's centre, as Blizzard places it on this art in its shop
+    -- (Blizzard_CatalogShop/Blizzard_CatalogShop.xml:301)
     badge.Count = badge:CreateFontString(nil, "OVERLAY")
     badge.Count:SetFontObject(UI.Font.body)
-    badge.Count:SetAllPoints()
-    badge.Count:SetJustifyH("CENTER")
-    badge.Count:SetJustifyV("MIDDLE")
-    -- Blizzard's Filter button sizes itself to its text, so a Stats button beside it can sit between pixels, and the
-    -- circle and the number would then snap to different ones. Rounding the badge's layout keeps them on one grid
-    for _, region in ipairs({ badge, background, badge.Count }) do
+    badge.Count:SetPoint("CENTER")
+    -- Blizzard's Filter button sizes itself to its text, so a Stats button beside it can sit between pixels. Rounding
+    -- the badge and its circle to whole pixels gives the number the same centre in every list
+    for _, region in ipairs({ badge, background }) do
         region:SetRoundLayoutToNearestPixel(true)
     end
     return badge
