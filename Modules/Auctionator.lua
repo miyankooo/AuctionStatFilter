@@ -4,10 +4,11 @@ local _, ns = ...
 -- that miss the chosen stats faded, as in Blizzard's list. Auctionator's own results stay as it built them.
 if not Auctionator then return end
 
-local UI = LibStub("LibNativeUI-1.0")
-
 -- Auctionator creates its frames on or shortly after the first Auction House visit, so setup retries this often
 local RETRY_SECONDS, RETRY_LIMIT = 0.5, 20
+
+-- Between related controls
+local GAP = 8
 
 local dropdown, fading
 
@@ -19,7 +20,7 @@ local function ensure()
     -- Parented to Export Results, so it hides with it whenever a buy screen covers the results
     if not dropdown and shopping.ExportCSV then
         dropdown = ns.Filter.CreateDropdown(shopping.ExportCSV)
-        dropdown:SetPoint("RIGHT", shopping.ExportCSV, "LEFT", -UI.Space.gap, 0)
+        dropdown:SetPoint("RIGHT", shopping.ExportCSV, "LEFT", -GAP, 0)
         -- The button sits at the bottom of the window, so the tip points down at it from the results
         ns.Tip.Attach(dropdown, HelpTip.Point.TopEdgeCenter)
     end

@@ -1,21 +1,11 @@
 local _, ns = ...
 
-local UI = LibStub("LibNativeUI-1.0")
-
 -- The chosen stats and how they combine, shared by every auction list, and the Stats button that sets them
 ns.Filter = {}
 
 -- Fixed on the grid, narrow enough to fit between Blizzard's search box and its own Filter button
 local DROPDOWN_WIDTH = 80
 local DROPDOWN_LABEL = "Stats"
-
--- The count badge Blizzard puts on a button's corner, as on the shop's cart button
--- (Blizzard_GenericShoppingCart/Blizzard_GenericShoppingCartTemplates.xml:255). It sits on the top left corner,
--- mirroring the reset button on the top right (Blizzard_Menu/Mainline/MenuTemplates.xml:85); both Blizzard pieces sit
--- 3px in from their corner, the one offset here off the grid
-local BADGE_ATLAS = "tokens-counterBG"
-local BADGE_SIZE = 24
-local BADGE_INSET = 3
 
 -- The stats on offer in the character sheet's categories; each key is one ns.ItemStats reads
 local CATEGORIES = {
@@ -150,35 +140,47 @@ local function clearStats()
     changed()
 end
 
--- A child frame of the addon's own button, so the badge shows and hides as one piece and never takes a click
-local function createBadge(dropdown)
-    local badge = CreateFrame("Frame", nil, dropdown)
-    badge:SetSize(BADGE_SIZE, BADGE_SIZE)
-    badge:SetPoint("CENTER", dropdown, "TOPLEFT", BADGE_INSET, 0)
-    local background = badge:CreateTexture(nil, "ARTWORK")
-    background:SetAtlas(BADGE_ATLAS)
-    background:SetAllPoints()
-    -- The number sits on the circle's centre, as Blizzard places it on this art in its shop
-    -- (Blizzard_CatalogShop/Blizzard_CatalogShop.xml:301), moved right by half the font's drop shadow. The number's box
-    -- includes the shadow, so it is an odd width (9 px for a digit at 12 px) in the even circle, and a centred box
-    -- starts on a half pixel that rounds either way: a pixel left on Blizzard's Auction House, where the Stats button
-    -- sits a hair off a whole pixel. Half the shadow puts the box on a whole pixel and centres the digits themselves
+-- Rounds a length derived from text up to the 4 px grid.
+local function Snap(length)
+    return math.ceil(length / 4) * 4
+end
+
+-- Blizzard's Filter button (Blizzard_Menu/Mainline/MenuTemplates.xml:66), as on the Who list. The template sizes
+-- itself to its text; the width is fixed on the grid so later text never moves it. Set SetDefaultCallback and
+-- SetIsDefaultCallback before SetupMenu; the template then shows its own reset button.
+local function CreateFilterDropdown(parent, width)
+    local dropdown = CreateFrame("DropdownButton", nil, parent, "WowStyle1FilterDropdownTemplate")
+    dropdown.resizeToText = false
+    dropdown:SetWidth(width or Snap(dropdown:GetWidth()))
+    return dropdown
+end
+
+-- The count badge Blizzard puts on a button's corner, as on the shop's cart button
+-- (Blizzard_GenericShoppingCart/Blizzard_GenericShoppingCartTemplates.xml:255): atlas tokens-counterBG, 24 px, on
+-- the top left corner 3 px in, mirroring a filter's reset button on the top right (MenuTemplates.xml:85). The
+-- number sits on the circle's centre (Blizzard_CatalogShop/Blizzard_CatalogShop.xml:301), moved right by half its
+-- drop shadow so its odd-width box lands on a whole pixel. Show it with a count, hide it at zero.
+local function CreateCountBadge(button)
+    local badge = CreateFrame("Frame", nil, button)
+    badge:SetSize(24, 24)
+    badge:SetPoint("CENTER", button, "TOPLEFT", 3, 0)
+    local circle = badge:CreateTexture(nil, "ARTWORK")
+    circle:SetAtlas("tokens-counterBG")
+    circle:SetAllPoints()
     badge.Count = badge:CreateFontString(nil, "OVERLAY")
-    badge.Count:SetFontObject(UI.Font.body)
-    local shadowX = badge.Count:GetShadowOffset()
-    badge.Count:SetPoint("CENTER", badge, "CENTER", shadowX / 2, 0)
-    -- Blizzard's Filter button sizes itself to its text, so a Stats button beside it can sit between pixels. Rounding
-    -- the badge and its circle to whole pixels gives the number the same centre in every list
-    for _, region in ipairs({ badge, background }) do
-        region:SetRoundLayoutToNearestPixel(true)
-    end
+    badge.Count:SetFontObject(GameFontHighlight)
+    badge.Count:SetPoint("CENTER", badge, "CENTER", badge.Count:GetShadowOffset() / 2, 0)
+    -- A button that sizes itself to its text can sit between pixels; whole pixels keep the number centred.
+    badge:SetRoundLayoutToNearestPixel(true)
+    circle:SetRoundLayoutToNearestPixel(true)
+    badge:Hide()
     return badge
 end
 
 -- Blizzard's Filter button, labelled Stats, with one submenu per stat category, as the Collections filters group
 -- long lists. Its reset button clears every stat, its badge counts them
 function ns.Filter.CreateDropdown(parent)
-    local dropdown = UI.CreateFilterDropdown(parent, DROPDOWN_WIDTH)
+    local dropdown = CreateFilterDropdown(parent, DROPDOWN_WIDTH)
     dropdown:SetText(DROPDOWN_LABEL)
     dropdown:SetDefaultCallback(clearStats)
     dropdown:SetIsDefaultCallback(function() return not isActive() end)
@@ -194,7 +196,7 @@ function ns.Filter.CreateDropdown(parent)
             end
         end
     end)
-    dropdown.Badge = createBadge(dropdown)
+    dropdown.Badge = CreateCountBadge(dropdown)
     updateBadge(dropdown)
     dropdowns[#dropdowns + 1] = dropdown
     return dropdown
