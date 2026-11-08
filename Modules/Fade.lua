@@ -18,8 +18,12 @@ local function paintRow(row)
     if paintedData[row] == rowData and paintedVersion[row] == ns.Filter.version then return end
 
     local matches = rowData == nil or ns.Filter.Matches(rowData.itemKey)
-    -- The item is still loading: the row stays as it is and is tried again next frame
-    if matches == nil then return end
+    -- The item is still loading: the row shows unfaded, so no fade from an earlier result or filter stays on it, and
+    -- is tried again next frame
+    if matches == nil then
+        if row:GetAlpha() ~= 1 then row:SetAlpha(1) end
+        return
+    end
 
     -- Blizzard sets the alpha of a browse row's parts and Auctionator none on a Shopping row, never the row's own,
     -- so this is the addon's alone

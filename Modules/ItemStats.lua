@@ -217,6 +217,8 @@ function ns.ItemStats.ForItemKey(itemKey)
     local text = ok and textOf(data)
     if not text then return nil end
     stats = ns.ItemStats.FullStatSet(text)
-    cache[cacheKey] = stats
+    -- An empty set may come from tooltip data the client had not filled in yet, so it is read again on the next ask
+    -- instead of fading the item under every filter for the rest of the session
+    if next(stats) then cache[cacheKey] = stats end
     return stats
 end

@@ -45,6 +45,7 @@ function frameMethods:GetText() return self.text end
 function frameMethods:SetWidth(w) self.width = w end
 function frameMethods:GetWidth() return self.width or 93 end
 function frameMethods:SetAlpha(alpha) self.alpha = alpha self.alphaSets = (self.alphaSets or 0) + 1 end
+function frameMethods:GetAlpha() return self.alpha or 1 end
 function frameMethods:SetPoint(point, relativeTo, relativePoint, x, y) self.points = self.points or {} self.points[point] = { relativeTo, relativePoint, x, y } end
 function frameMethods:RegisterEvent(event) self.events[event] = true end
 function frameMethods:UnregisterEvent(event) self.events[event] = nil end
@@ -325,6 +326,34 @@ check("two stats, badge 2", tostring(badge.Count.text) == "2", badge.Count.text)
 menu.items[1].setSelected("AND")
 paint()
 check("Match All needs both", robe.alpha < 1 and strong.alpha < 1)
+
+-- A faded row handed a result still loading drops the old fade until its item is known
+items[30] = { class = 4, cached = false, lines = { "Fresh Boots", "+2 Strength", "Increases spell power by 2." } }
+local robeData = robe.rowData
+robe.rowData = { itemKey = { itemID = 30, itemLevel = 0, itemSuffix = 0 } }
+paint()
+check("a reused row loses the old fade while its item loads", robe.alpha == 1)
+items[30].cached = true
+paint()
+check("and is painted once the item is known", robe.alpha == 1 and robe.alphaSets >= 2)
+robe.rowData = robeData
+paint()
+check("the robe fades again under Match All", robe.alpha < 1)
+
+-- Tooltip data read before the client filled it in gives no stats; it is read again on the next filter change
+items[31] = { class = 4, cached = true, lines = { "Early Bracers" } }
+local bracers = row(31)
+browseRows[#browseRows + 1] = bracers
+paint()
+check("gear read without stats fades", bracers.alpha < 1)
+items[31].lines = { "Early Bracers", "+3 Strength", "Increases spell power by 4." }
+menu.items[2].setSelected("OR")
+paint()
+check("its stats are read again after a filter change", bracers.alpha == 1)
+menu.items[1].setSelected("AND")
+paint()
+check("and kept from then on", bracers.alpha == 1 and robe.alpha < 1)
+table.remove(browseRows)
 
 -- ===== First-run tip =====
 check("no tip while the Auction House is closed", #helpTips == 0, #helpTips)
