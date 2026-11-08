@@ -17,7 +17,7 @@ A WoW Forever addon that filters Auction House results by the item stats you wan
 
 ## Usage
 
-1. Open the Auction House and click Stats, left of Filter.
+1. Open the Auction House and click Stats, left of Filter, or left of Export Results in Auctionator's Shopping tab.
 2. Pick Match All or Match Any, then tick the stats you want.
 3. Search as usual. Gear without your stats fades out.
 4. Click the red X on Stats to clear every stat.
