@@ -10,6 +10,7 @@
 ## SavedVariables: AuctionStatFilterDB
 
 Modules\Chat.lua
+Modules\Suffixes.lua
 Modules\ItemStats.lua
 Modules\Filter.lua
 Modules\Fade.lua

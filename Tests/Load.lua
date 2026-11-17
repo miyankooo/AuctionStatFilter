@@ -157,6 +157,11 @@ local items = {
     [26] = { class = 4, cached = true, lines = { "Robe", "Increases spell power by 12." } },
     [27] = { class = 0, cached = true, lines = { "Potion" } },
     [28] = { class = 4, cached = false, lines = { "Late Gloves", "+3 Strength" } },
+    -- Random-suffix gear: the item itself has no stats, its key's tooltip shows none
+    [9775] = { class = 4, cached = true, lines = { "Bandit Cinch", "Waist", "38 Armor", "Requires Level 22" } },
+    -- A weapon whose "of Magic" also carries Intellect, and armour whose "of Magic" does not
+    [727] = { class = 2, cached = true, lines = { "Notched Shortsword", "5 - 10 Damage" } },
+    [9790] = { class = 4, cached = true, lines = { "Plain Robe", "40 Armor" } },
 }
 local tooltipBuilds, loadRequests = 0, 0
 C_Item = {
@@ -216,6 +221,35 @@ check("the client's short wording parses", parse("+7 stamina").stamina)
 check("crit avoidance never reads as crit", not parse("improves your critical strike avoidance rating by 5.").crit)
 check("Use effects carry no stats", not parse("use: increases strength by 50 for 20 sec.").strength)
 check("lines without a number are skipped", next(parse("soulbound", "chest", "strength of the bear")) == nil)
+
+-- ===== Random suffixes =====
+-- Suffix ids from the client's ItemNameDescription table: 14455 of the Monkey, 14299 of the Owl, 14314 of Magic,
+-- 14345 of Fire Resistance, which adds no stat the filter reads
+local function keyStats(itemID, itemSuffix)
+    return ns.ItemStats.ForItemKey({ itemID = itemID, itemLevel = 27, itemSuffix = itemSuffix })
+end
+local function count(set) local n = 0 for _ in pairs(set) do n = n + 1 end return n end
+check("a suffix adds its stats to an item without any", keyStats(9775, 14455).agility and keyStats(9775, 14455).stamina and count(keyStats(9775, 14455)) == 2)
+check("each suffix of one item has its own stats", keyStats(9775, 14299).intellect and keyStats(9775, 14299).spirit and not keyStats(9775, 14299).agility)
+check("the item without a suffix has none", next(keyStats(9775, 0)) == nil)
+check("a suffix without readable stats adds none", next(keyStats(9775, 14345)) == nil)
+check("an unknown suffix adds none", next(keyStats(9775, 99999)) == nil)
+check("a suffix follows the item where it differs", keyStats(727, 14314).intellect and keyStats(727, 14314).spellpower)
+check("and keeps its usual stats elsewhere", keyStats(9790, 14314).spellpower and not keyStats(9790, 14314).intellect)
+local parserKeys = { hp5 = true }
+for _, key in ipairs({ "strength", "agility", "stamina", "intellect", "spirit", "attackpower", "rangedattackpower", "hit", "crit", "haste",
+    "expertise", "armorpenetration", "spellpower", "healing", "spellhit", "spellcrit", "spellpenetration", "mp5", "arcanedamage",
+    "firedamage", "frostdamage", "holydamage", "naturedamage", "shadowdamage", "defense", "dodge", "parry", "block", "blockvalue" }) do
+    parserKeys[key] = true
+end
+local strayKey
+for _, keys in pairs(ns.SuffixStats) do
+    for _, key in ipairs(keys) do strayKey = strayKey or (not parserKeys[key] and key) end
+end
+for _, entry in ipairs(ns.SuffixItemStats) do
+    for _, key in ipairs(entry.stats) do strayKey = strayKey or (not parserKeys[key] and key) end
+end
+check("every suffix stat is one the filter reads", not strayKey, strayKey)
 
 -- ===== Blizzard's Auction House =====
 local function row(itemID)
@@ -454,6 +488,22 @@ check("reset clears every stat", next(AuctionStatFilterDB.stats) == nil and not 
 check("reset hides both badges", not badge.shown and not shoppingDropdown.Badge.shown)
 paint()
 check("reset unfades both lists", robe.alpha == 1 and strong.alpha == 1 and vest.alpha == 1 and cloth.alpha == 1)
+
+-- Suffix gear in the list: the same item stays with a suffix that has the stat and fades with one that lacks it
+local function suffixRow(itemID, itemSuffix)
+    local r = row(itemID)
+    r.rowData.itemKey.itemSuffix = itemSuffix
+    return r
+end
+local monkey, owl, plain = suffixRow(9775, 14455), suffixRow(9775, 14299), suffixRow(9775, 0)
+browseRows = { monkey, owl, plain, strong }
+local agility = menu.items[4].items[2]
+agility.setSelected(agility.data)
+paint()
+check("gear of the Monkey stays under Agility", AuctionStatFilterDB.stats.agility and monkey.alpha == 1)
+check("the same item of the Owl fades", owl.alpha < 1)
+check("and so does it without a suffix", plain.alpha < 1 and strong.alpha < 1)
+agility.setSelected(agility.data)
 
 runNextFrame()
 print(failures == 0 and "All checks passed." or (failures .. " checks failed."))

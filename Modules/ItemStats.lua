@@ -1,6 +1,7 @@
 local _, ns = ...
 
--- The stats of an auction item key, read from the client's own tooltip data and stat strings
+-- The stats of an auction item key: the item's own from the client's tooltip data and stat strings, a random
+-- suffix's from the client's item tables in Suffixes.lua
 ns.ItemStats = {}
 
 -- Primary stat names, lowercased to match the lowercased tooltip text
@@ -198,7 +199,24 @@ local cache = {}
 -- Item ids already asked of the server, so a row that waits for its data asks once
 local requested = {}
 
--- Stat set of an auction item key; nil while the client still loads the item. Vanilla random suffixes carry fixed stats per suffix id, so the key renders the exact stats without a full link
+-- Suffix id, then item id, to the stats of the few items whose suffix differs from ns.SuffixStats
+local SUFFIX_ITEM_STATS = {}
+for _, entry in ipairs(ns.SuffixItemStats) do
+    local byItem = SUFFIX_ITEM_STATS[entry.suffix] or {}
+    SUFFIX_ITEM_STATS[entry.suffix] = byItem
+    for _, itemID in ipairs(entry.items) do byItem[itemID] = entry.stats end
+end
+
+-- Adds the stats of an item's random suffix. Gear such as "of the Monkey" keeps every stat in its suffix and none on
+-- the item, and a list row only knows the item key, whose tooltip shows the item without them
+local function addSuffixStats(itemID, itemSuffix, present)
+    local byItem = SUFFIX_ITEM_STATS[itemSuffix]
+    local keys = byItem and byItem[itemID] or ns.SuffixStats[itemSuffix]
+    if not keys then return end
+    for _, key in ipairs(keys) do present[key] = true end
+end
+
+-- Stat set of an auction item key; nil while the client still loads the item
 function ns.ItemStats.ForItemKey(itemKey)
     local itemID, itemLevel, itemSuffix = itemKey.itemID, itemKey.itemLevel or 0, itemKey.itemSuffix or 0
     local cacheKey = itemID .. ":" .. itemLevel .. ":" .. itemSuffix
@@ -217,6 +235,7 @@ function ns.ItemStats.ForItemKey(itemKey)
     local text = ok and textOf(data)
     if not text then return nil end
     stats = ns.ItemStats.FullStatSet(text)
+    addSuffixStats(itemID, itemSuffix, stats)
     -- An empty set may come from tooltip data the client had not filled in yet, so it is read again on the next ask
     -- instead of fading the item under every filter for the rest of the session
     if next(stats) then cache[cacheKey] = stats end
