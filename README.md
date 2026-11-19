@@ -12,6 +12,7 @@ A WoW Forever addon that filters Auction House results by the item stats you wan
 - Tooltips on Stats, its red X, Match All and Match Any explain what they do.
 - Gear without your stats fades out, in Blizzard's search results and in Auctionator's Shopping tab, so you always see that a filter is on.
 - Match All keeps gear with every stat you ticked, Match Any gear with at least one.
+- Gear with a random suffix, such as of the Monkey, counts the stats its suffix adds.
 - Spell Power counts for every spell school.
 - Items that are not gear, such as consumables and trade goods, always stay.
 - Your choice is kept for all your characters.
