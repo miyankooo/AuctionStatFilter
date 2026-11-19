@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/miyankooo/AuctionStatFilter/compare/v1.1.0...v1.1.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* Gear with a random suffix, such as of the Monkey, is matched by the stats its suffix adds ([112c2b5](https://github.com/miyankooo/AuctionStatFilter/commit/112c2b50bf00f18ce7dfa1ba8b65cc3a5597274f))
+
 ## [1.1.0](https://github.com/miyankooo/AuctionStatFilter/compare/v1.0.0...v1.1.0) (2026-11-08)
 
 
